@@ -1,0 +1,62 @@
+*lumiris.txt*  Automatic colorscheme rotation with persistent preferences
+
+==============================================================================
+INTRODUCTION                                                         *lumiris*
+
+lumiris.nvim rotates through your installed colorschemes on a timer and/or on
+configured events, with per-scheme like/hate preferences persisted to disk.
+
+Pure Lua, Neovim only. Requires Neovim >= 0.10.
+
+==============================================================================
+SETUP                                                          *lumiris-setup*
+
+>lua
+    require("lumiris").setup({
+      notify = false,
+      log_level = "warn",
+      interval = 3600,
+      events = { "FocusLost", "CursorHold" },
+      background = nil,
+      include = {},
+      exclude = {},
+      state_path = vim.fn.stdpath("state") .. "/lumiris/prefs.json",
+    })
+<
+
+`interval` rate-limits switching: events fire often but the colorscheme only
+changes once `interval` seconds elapse. `interval = 0` switches on every event.
+
+==============================================================================
+COMMANDS                                                    *lumiris-commands*
+
+                                                              *:LumirisChange*
+:LumirisChange      Switch to a new colorscheme now (ignores `interval`).
+
+                                                                *:LumirisLike*
+:LumirisLike        Boost the current colorscheme so it is picked more often.
+
+                                                                *:LumirisHate*
+:LumirisHate        Exclude the current colorscheme and switch away.
+
+                          *:LumirisEnable* *:LumirisDisable* *:LumirisToggle*
+:LumirisEnable      Resume / pause / toggle automatic switching.
+:LumirisDisable
+:LumirisToggle
+
+==============================================================================
+LUA API                                                          *lumiris-api*
+
+    require("lumiris").change()         ~
+    require("lumiris").like([name])     ~
+    require("lumiris").hate([name])     ~
+    require("lumiris").enable()         ~
+    require("lumiris").disable()        ~
+    require("lumiris").candidates()     ~
+
+==============================================================================
+HEALTH                                                        *lumiris-health*
+
+    :checkhealth lumiris
+
+ vim:tw=78:ts=8:ft=help:norl:
