@@ -24,7 +24,24 @@ denops dependency).
 
 ## Install
 
-With [lazy.nvim](https://github.com/folke/lazy.nvim):
+With [rvpm](https://github.com/yukimemi/rvpm) (recommended):
+
+```sh
+rvpm add yukimemi/lumiris.nvim --on-event CursorHold --on-cmd '/^Lumiris.*$/'
+```
+
+Or in `config.toml`:
+
+```toml
+[[plugins]]
+url = "https://github.com/yukimemi/lumiris.nvim"
+on_event = "CursorHold"
+on_cmd = ["/^Lumiris.*$/"]
+```
+
+> rvpm doesn't auto-run `setup()` — when you pass options, call `require("lumiris").setup({ ... })` from a hook file (`plugins/github.com/yukimemi/lumiris.nvim/after.lua`).
+
+Or with [lazy.nvim](https://github.com/folke/lazy.nvim):
 
 ```lua
 {
