@@ -1,10 +1,22 @@
-# lumiris.nvim
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/yukimemi/lumiris.nvim/main/assets/logo-dark.svg">
+  <img src="https://raw.githubusercontent.com/yukimemi/lumiris.nvim/main/assets/logo.svg" alt="lumiris — auto-rotate your Neovim colorschemes" width="520">
+</picture>
+
+<p><em>auto-rotate your Neovim colorschemes.</em></p>
+
+[![CI](https://github.com/yukimemi/lumiris.nvim/actions/workflows/ci.yml/badge.svg)](https://github.com/yukimemi/lumiris.nvim/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/yukimemi/lumiris.nvim/blob/main/LICENSE)
+[![Neovim 0.10+](https://img.shields.io/badge/Neovim-0.10+-57A143?logo=neovim&logoColor=white)](https://neovim.io)
+
+</div>
 
 Automatically rotate through your installed colorschemes, with per-scheme
-like/hate preferences that persist across sessions.
-
-A pure-Lua, Neovim-only rewrite of [lumiris.vim](https://github.com/yukimemi/lumiris.vim)
-(no Deno / denops dependency).
+like/hate preferences that persist across sessions. A pure-Lua, Neovim-only
+rewrite of [lumiris.vim](https://github.com/yukimemi/lumiris.vim) (no Deno /
+denops dependency).
 
 ## Requirements
 
