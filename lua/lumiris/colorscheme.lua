@@ -15,19 +15,37 @@ end
 ---Scan `colors_path` for `**/colors/*.{vim,lua}` and map each colorscheme name
 ---to its plugin root. First match wins so runtimepath/built-ins are not shadowed.
 ---@return table<string, string>
+local function register(file, into)
+  local name = vim.fn.fnamemodify(file, ":t:r")
+  if name ~= "" and into[name] == nil then
+    into[name] = vim.fs.normalize(vim.fn.fnamemodify(file, ":h:h"))
+  end
+end
+
 local function discover()
   if discovered then
     return discovered
   end
   discovered = {}
   for _, dir in ipairs(cfg().colors_path or {}) do
-    if vim.fn.isdirectory(dir) == 1 then
+    local d = vim.fs.normalize(dir)
+    if vim.fn.isdirectory(d) == 1 then
+      local before = vim.tbl_count(discovered)
       for _, ext in ipairs({ "vim", "lua" }) do
-        for _, file in ipairs(vim.fn.globpath(dir, "**/colors/*." .. ext, false, true)) do
-          local name = vim.fn.fnamemodify(file, ":t:r")
-          if name ~= "" and discovered[name] == nil then
-            discovered[name] = vim.fn.fnamemodify(file, ":h:h")
-          end
+        for _, file in ipairs(vim.fn.globpath(d, "**/colors/*." .. ext, true, true)) do
+          register(file, discovered)
+        end
+      end
+      if vim.tbl_count(discovered) == before then
+        -- globpath's `**` is unreliable for some path shapes on some Neovim
+        -- builds (seen on Windows CI). Fall back to a directory walk, which
+        -- only runs when the fast glob turned up nothing for this dir.
+        local files = vim.fs.find(function(name, path)
+          local ext = name:sub(-4)
+          return (ext == ".lua" or ext == ".vim") and vim.fs.basename(path) == "colors"
+        end, { path = d, type = "file", limit = math.huge })
+        for _, file in ipairs(files) do
+          register(file, discovered)
         end
       end
     end
