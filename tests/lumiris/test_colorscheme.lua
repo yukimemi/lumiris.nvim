@@ -68,6 +68,15 @@ T["colors_path discovers off-runtimepath colorschemes"] = function()
   local cs = require("lumiris.colorscheme")
   cs.refresh()
 
+  -- Discovery is asynchronous; wait for the scan to land in the cache.
+  local done = false
+  cs.scan(function()
+    done = true
+  end)
+  vim.wait(5000, function()
+    return done
+  end)
+
   eq(vim.tbl_contains(cs.candidates(), "lumiris_demo"), true)
   vim.fn.delete(root, "rf")
 end

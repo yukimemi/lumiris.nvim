@@ -45,6 +45,7 @@ function M.register()
   end
   local cs = require("lumiris.colorscheme")
   cs.refresh() -- colors_path may have changed since the last register
+  cs.scan() -- warm the discovery cache in the background (non-blocking)
   cs.prime()
   M.start_timer()
 end

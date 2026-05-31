@@ -4,58 +4,138 @@ local M = {}
 local last_change_ms = nil
 
 -- Discovered colorschemes from `colors_path`: name -> plugin root (the dir to
--- prepend to the runtimepath before `:colorscheme name` can succeed). Cached;
--- cleared by `M.refresh()`.
+-- prepend to the runtimepath as an apply fallback). Filled asynchronously by
+-- M.scan() so the UI never blocks; `nil` until the first scan completes.
 local discovered = nil ---@type table<string, string>|nil
+local scanning = false -- in-flight guard so concurrent calls don't double-walk
 
 local function cfg()
   return require("lumiris.config").options
 end
 
----Scan `colors_path` for `**/colors/*.{vim,lua}` and map each colorscheme name
----to its plugin root. First match wins so runtimepath/built-ins are not shadowed.
----@return table<string, string>
-local function register(file, into)
-  local name = vim.fn.fnamemodify(file, ":t:r")
-  if name ~= "" and into[name] == nil then
-    into[name] = vim.fs.normalize(vim.fn.fnamemodify(file, ":h:h"))
-  end
+-- Derive name + plugin root from a "/"-separated colorscheme file path using
+-- pure string ops only, so it is safe inside libuv (fast) callbacks where
+-- vim.fn.* must not be called. e.g. ".../demo.nvim/colors/foo.lua" -> "foo",
+-- ".../demo.nvim".
+local function entry_of(file)
+  local name = file:match("([^/]+)%.[^./]+$")
+  local root = file:match("^(.*)/colors/[^/]+$")
+  return name, root
 end
 
-local function discover()
-  if discovered then
-    return discovered
+-- Directory names never worth descending into when hunting for colorschemes.
+local PRUNE_DIRS = { [".git"] = true, ["node_modules"] = true }
+
+-- Non-blocking recursive walk of `root` via vim.uv, collecting files that live
+-- directly under a `colors/` dir. `on_done` fires (in the libuv/fast context)
+-- once every outstanding scandir has drained. Hidden dirs and a few heavy dir
+-- names are pruned; everything else is descended so colorschemes nested under
+-- subdirectories (collection-style plugins) are still found.
+local function walk_async(root, on_done)
+  local files = {}
+  local active = 0
+
+  -- `in_colors` is true when `dir` itself is a colors/ directory.
+  local function scan(dir, in_colors)
+    active = active + 1
+    vim.uv.fs_scandir(dir, function(err, handle)
+      if not err and handle then
+        while true do
+          local name, typ = vim.uv.fs_scandir_next(handle)
+          if not name then
+            break
+          end
+          local full = dir .. "/" .. name
+          if typ == "directory" then
+            if name:sub(1, 1) ~= "." and not PRUNE_DIRS[name] then
+              scan(full, name == "colors")
+            end
+          elseif in_colors then
+            local ext = name:sub(-4)
+            if ext == ".lua" or ext == ".vim" then
+              files[#files + 1] = full
+            end
+          end
+        end
+      end
+      active = active - 1
+      if active == 0 then
+        on_done(files)
+      end
+    end)
   end
-  discovered = {}
-  for _, dir in ipairs(cfg().colors_path or {}) do
-    local d = vim.fs.normalize(dir)
-    if vim.fn.isdirectory(d) == 1 then
-      local before = vim.tbl_count(discovered)
-      for _, ext in ipairs({ "vim", "lua" }) do
-        for _, file in ipairs(vim.fn.globpath(d, "**/colors/*." .. ext, true, true)) do
-          register(file, discovered)
-        end
-      end
-      if vim.tbl_count(discovered) == before then
-        -- globpath's `**` is unreliable for some path shapes on some Neovim
-        -- builds (seen on Windows CI). Fall back to a directory walk, which
-        -- only runs when the fast glob turned up nothing for this dir.
-        local files = vim.fs.find(function(name, path)
-          local ext = name:sub(-4)
-          return (ext == ".lua" or ext == ".vim") and vim.fs.basename(path) == "colors"
-        end, { path = d, type = "file", limit = math.huge })
-        for _, file in ipairs(files) do
-          register(file, discovered)
-        end
-      end
+
+  scan(root, false)
+end
+
+---Asynchronously scan `colors_path` and cache the name -> root map. The UI is
+---never blocked. `on_done(map)` (optional) fires once the cache is ready, in a
+---scheduled (API-safe) context. No-op while a scan is already in flight.
+---@param on_done? fun(map: table<string, string>)
+function M.scan(on_done)
+  if discovered then
+    if on_done then
+      on_done(discovered)
+    end
+    return
+  end
+  if scanning then
+    return
+  end
+  scanning = true
+
+  local dirs = {}
+  for _, d in ipairs(cfg().colors_path or {}) do
+    local nd = vim.fs.normalize(d)
+    if vim.fn.isdirectory(nd) == 1 then
+      dirs[#dirs + 1] = nd
     end
   end
-  return discovered
+
+  local acc = {}
+  local remaining = #dirs
+
+  local function finish()
+    vim.schedule(function()
+      discovered = acc
+      scanning = false
+      if on_done then
+        on_done(acc)
+      end
+    end)
+  end
+
+  if remaining == 0 then
+    return finish()
+  end
+
+  for _, dir in ipairs(dirs) do
+    walk_async(dir, function(found)
+      for _, file in ipairs(found) do
+        local name, droot = entry_of(file)
+        if name and droot and acc[name] == nil then
+          acc[name] = droot
+        end
+      end
+      remaining = remaining - 1
+      if remaining == 0 then
+        finish()
+      end
+    end)
+  end
 end
 
 ---Drop the discovery cache (call after `colors_path` changes).
 function M.refresh()
   discovered = nil
+  scanning = false
+end
+
+-- Kick off discovery if it has neither completed nor started. Non-blocking.
+local function ensure_scan()
+  if discovered == nil and not scanning then
+    M.scan()
+  end
 end
 
 ---Installed colorschemes after applying include / exclude / hated filters.
@@ -75,7 +155,8 @@ function M.candidates()
   for _, name in ipairs(vim.fn.getcompletion("", "color")) do
     add(name)
   end
-  for name in pairs(discover()) do
+  ensure_scan() -- warm the cache in the background; use whatever is ready now
+  for name in pairs(discovered or {}) do
     add(name)
   end
 
@@ -166,7 +247,7 @@ function M.apply(name)
     -- plugin on `:colorscheme` via a ColorSchemePre hook, so the first attempt
     -- usually succeeds. Fallback for unmanaged setups: put the discovered
     -- plugin root on the runtimepath and retry once.
-    local root = discover()[name]
+    local root = (discovered or {})[name]
     if root and not vim.o.runtimepath:find(root, 1, true) then
       vim.opt.runtimepath:prepend(root)
       ok, err = pcall(vim.cmd.colorscheme, name)
