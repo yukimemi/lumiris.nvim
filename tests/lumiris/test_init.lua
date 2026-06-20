@@ -26,6 +26,46 @@ T["hate of the current colorscheme excludes it and switches away"] = function()
   eq(vim.g.colors_name ~= victim, true)
 end
 
+T["setup applies a colorscheme when none is active (escapes default)"] = function()
+  local cs = require("lumiris.colorscheme")
+  if #cs.candidates() == 0 then
+    MiniTest.skip("no colorschemes available")
+  end
+  vim.g.colors_name = nil -- simulate the fresh-startup default state
+  require("lumiris").setup({ state_path = vim.fn.tempname(), interval = 0 })
+  eq(vim.g.colors_name ~= nil and vim.g.colors_name ~= "", true)
+end
+
+T["setup leaves an already-active colorscheme untouched"] = function()
+  local cs = require("lumiris.colorscheme")
+  local cands = cs.candidates()
+  if #cands == 0 then
+    MiniTest.skip("no colorschemes available")
+  end
+  cs.apply(cands[1])
+  local chosen = vim.g.colors_name
+  require("lumiris").setup({ state_path = vim.fn.tempname(), interval = 0 })
+  eq(vim.g.colors_name, chosen)
+end
+
+T["LumirisHate with no active colorscheme switches anyway"] = function()
+  local cs = require("lumiris.colorscheme")
+  if #cs.candidates() == 0 then
+    MiniTest.skip("no colorschemes available")
+  end
+  require("lumiris.command").register()
+  vim.g.colors_name = nil
+  vim.cmd("LumirisHate")
+  eq(vim.g.colors_name ~= nil and vim.g.colors_name ~= "", true)
+end
+
+T["LumirisLike with no active colorscheme is a harmless no-op"] = function()
+  require("lumiris.command").register()
+  vim.g.colors_name = nil
+  -- Must not error even though there is nothing to like.
+  vim.cmd("LumirisLike")
+end
+
 T["hate of a non-current scheme excludes it but does not switch"] = function()
   local lumiris = require("lumiris")
   local cs = require("lumiris.colorscheme")
