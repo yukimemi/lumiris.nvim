@@ -21,6 +21,7 @@ function M.register()
   cmd("LumirisLike", function()
     local cur = current_colors()
     if not cur then
+      require("lumiris.log").echo("no active colorscheme to like")
       return
     end
     local state = require("lumiris.state")
@@ -30,11 +31,14 @@ function M.register()
 
   cmd("LumirisHate", function()
     local cur = current_colors()
-    if not cur then
-      return
+    if cur then
+      require("lumiris.state").hate(cur)
+      require("lumiris.log").echo(("hated '%s' (excluded from rotation)"):format(cur))
+    else
+      -- Stuck on `default` (no current scheme to hate). Still switch away so the
+      -- key always does something visible instead of silently no-op'ing.
+      require("lumiris.log").echo("no active colorscheme to hate; switching anyway")
     end
-    require("lumiris.state").hate(cur)
-    require("lumiris.log").echo(("hated '%s' (excluded from rotation)"):format(cur))
     require("lumiris.colorscheme").rotate({ force = true })
   end, "lumiris: exclude the current colorscheme and switch away")
 

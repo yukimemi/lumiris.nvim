@@ -7,6 +7,16 @@ function M.setup(opts)
   math.randomseed(vim.uv.now())
   require("lumiris.command").register()
   require("lumiris.autocmd").register()
+
+  -- Without an active colorscheme the session sits on `default` until the first
+  -- timer/event switch (up to `interval` seconds away), and `:LumirisHate` /
+  -- `:LumirisLike` have no current scheme to act on. Pick one now so lumiris is
+  -- in control from the start. A colorscheme already chosen (by the user's
+  -- config) is left untouched.
+  local cur = vim.g.colors_name
+  if not cur or cur == "" then
+    require("lumiris.colorscheme").rotate({ force = true })
+  end
 end
 
 -- Convenience Lua API mirroring the `:Lumiris*` commands.
@@ -28,13 +38,16 @@ end
 ---@param name? string  defaults to the current colorscheme
 function M.hate(name)
   local cur = vim.g.colors_name
-  name = name or cur
-  if not name or name == "" then
-    return
+  if cur == "" then
+    cur = nil
   end
-  require("lumiris.state").hate(name)
-  -- Switch away only when excluding the colorscheme that is currently active.
-  if name == cur then
+  name = name or cur
+  if name then
+    require("lumiris.state").hate(name)
+  end
+  -- Switch away when excluding the active scheme, or when nothing is active yet
+  -- (stuck on default), so the call always makes progress instead of no-op'ing.
+  if name == cur or cur == nil then
     require("lumiris.colorscheme").rotate({ force = true })
   end
 end

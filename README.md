@@ -76,6 +76,10 @@ require("lumiris").setup({
 colorscheme only changes once `interval` seconds have elapsed. Set `interval = 0`
 to switch on *every* event instead.
 
+`setup()` picks a colorscheme immediately when none is active yet, so a fresh
+session never sits on `default` waiting for the first `interval` to elapse. If
+your config already set a colorscheme, it is left untouched.
+
 ## Commands
 
 | Command | Action |
