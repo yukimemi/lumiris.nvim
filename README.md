@@ -37,9 +37,17 @@ Or in `config.toml`:
 url = "https://github.com/yukimemi/lumiris.nvim"
 on_event = "CursorHold"
 on_cmd = ["/^Lumiris.*$/"]
+opts = {} # rvpm calls setup(opts) — e.g. { interval = 3600 }, same values as lazy.nvim below
 ```
 
-> rvpm doesn't auto-run `setup()` — when you pass options, call `require("lumiris").setup({ ... })` from a hook file (`plugins/github.com/yukimemi/lumiris.nvim/after.lua`).
+> Here `setup()` is **required**: the commands come up either way, but nothing
+> is switched automatically until `require("lumiris").setup(...)` installs the
+> autocmds. **rvpm >= 3.45.0 handles it for you** — put `opts = {}` (or your
+> options) in the `[[plugins]]` entry and rvpm calls
+> `require("lumiris").setup(<opts>)` right before the plugin's `after.lua`
+> (same convention as lazy.nvim's `opts`). Use a hook
+> (`rvpm edit yukimemi/lumiris.nvim --after`) only when the options need a Lua
+> function, which TOML cannot express.
 
 Or with [lazy.nvim](https://github.com/folke/lazy.nvim):
 
