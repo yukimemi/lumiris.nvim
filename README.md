@@ -28,6 +28,8 @@ With [rvpm](https://github.com/yukimemi/rvpm) (recommended):
 
 ```sh
 rvpm add yukimemi/lumiris.nvim --on-event CursorHold --on-cmd '/^Lumiris.*$/'
+# or pass setup options inline
+rvpm add yukimemi/lumiris.nvim --setup '{ interval = 3600 }'
 ```
 
 Or in `config.toml`:
@@ -37,17 +39,21 @@ Or in `config.toml`:
 url = "https://github.com/yukimemi/lumiris.nvim"
 on_event = "CursorHold"
 on_cmd = ["/^Lumiris.*$/"]
-opts = {} # rvpm calls setup(opts) — e.g. { interval = 3600 }, same values as lazy.nvim below
+setup = {} # or setup = { interval = 3600 }
 ```
 
 > Here `setup()` is **required**: the commands come up either way, but nothing
 > is switched automatically until `require("lumiris").setup(...)` installs the
-> autocmds. **rvpm >= 3.45.0 handles it for you** — put `opts = {}` (or your
-> options) in the `[[plugins]]` entry and rvpm calls
-> `require("lumiris").setup(<opts>)` right before the plugin's `after.lua`
-> (same convention as lazy.nvim's `opts`). Use a hook
-> (`rvpm edit yukimemi/lumiris.nvim --after`) only when the options need a Lua
-> function, which TOML cannot express.
+> autocmds. **rvpm >= 3.48.0 handles it for you** — give the `[[plugins]]` entry
+> a `setup` field and rvpm calls `require("lumiris").setup(<opts>)` right before
+> the plugin's `after.lua`. `setup = {}` calls it with no options;
+> `setup = { interval = 3600 }` passes that table as the options. Leave `setup`
+> out and rvpm never calls setup at all. Do not set the plugin up twice: with
+> `setup` present, never call `require("lumiris").setup(...)` from a hook as
+> well. Use a hook (`rvpm edit yukimemi/lumiris.nvim --after`) when the options
+> need a Lua function, which TOML cannot express — and when a single setup call
+> needs both plain data and a Lua function, keep the whole call in `after.lua`
+> and omit `setup`.
 
 Or with [lazy.nvim](https://github.com/folke/lazy.nvim):
 
